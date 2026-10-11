@@ -111,6 +111,21 @@ h3 {
   padding-top: 48px;
 }
 
+.name {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.photo {
+  flex-shrink: 0;
+  width: 96px;
+  height: 96px;
+  object-fit: cover;
+  border: 3px solid var(--orange);
+  border-radius: 50%;
+}
+
 .hero h1 {
   color: var(--navy);
   font-size: 32px;
