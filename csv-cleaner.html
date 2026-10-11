@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-gsGaWSGfxyFD1WYk31hAiWfJb3pUGjQzSdOI26/bYy4='; style-src 'sha256-OEpUcjZakakFV5+XUSNvmaoDprUq0nW529MEcQOzpJA='; connect-src 'none'; img-src 'none'; form-action 'none'; base-uri 'none'">
+<meta name="referrer" content="no-referrer">
+<title>CSV整形ツール</title>
+<style>
+  :root { --bg: #f7f7f5; --fg: #1f2328; --muted: #5f6670; --card: #ffffff; --line: #d8dbe0; --accent: #1f6feb; --warn: #9a6700; --warnbg: #fff8e1; --err: #cf222e; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #16181c; --fg: #e6e8eb; --muted: #9aa3ad; --card: #1f2227; --line: #343a42; --accent: #58a6ff; --warn: #e3b341; --warnbg: #2b2410; --err: #ff7b72; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Yu Gothic UI", Meiryo, sans-serif; line-height: 1.6; }
+  main { max-width: 860px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 1.4rem; margin: 0 0 4px; }
+  .lead { color: var(--muted); margin: 0 0 20px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+  label.opt { display: inline-flex; gap: 6px; align-items: center; margin-top: 10px; }
+  input[type=file] { max-width: 100%; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .stat { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+  .stat .k { color: var(--muted); font-size: .85rem; }
+  .stat .v { font-size: 1.6rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .info { color: var(--muted); font-size: .9rem; margin: 10px 0 0; }
+  .warn { background: var(--warnbg); color: var(--warn); border-radius: 8px; padding: 10px 12px; margin-top: 12px; font-size: .9rem; }
+  .warn ul { margin: 6px 0 0; padding-left: 20px; }
+  .error { color: var(--err); font-weight: 600; }
+  button { background: var(--accent); color: #fff; border: 0; border-radius: 8px; padding: 10px 18px; font-size: 1rem; cursor: pointer; margin-top: 14px; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  .tablewrap { overflow-x: auto; margin-top: 12px; }
+  table { border-collapse: collapse; width: 100%; font-size: .9rem; }
+  th, td { border: 1px solid var(--line); padding: 4px 8px; text-align: left; white-space: nowrap; }
+  th { background: var(--bg); }
+  .hidden { display: none; }
+  .note { color: var(--muted); font-size: .85rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>CSV整形ツール</h1>
+  <p class="lead">選んだファイルはこのパソコンの中だけで処理します。外部への送信は行いません。</p>
+
+  <section class="card">
+    <input type="file" id="file" accept=".csv,text/csv,text/plain">
+    <div><label class="opt"><input type="checkbox" id="hasHeader" checked> 1行目は見出し行（件数に含めない）</label></div>
+    <p class="info">行う処理：全角の英数字・記号を半角に変換 → 電話番号を「090-1234-5678」の形に統一 → 同じ内容の行を1つにまとめる</p>
+    <p id="error" class="error hidden" role="alert"></p>
+  </section>
+
+  <section class="card hidden" id="result" aria-live="polite">
+    <div class="stats">
+      <div class="stat"><div class="k">読み込んだ件数</div><div class="v" id="nIn">0</div></div>
+      <div class="stat"><div class="k">整えたあとの件数</div><div class="v" id="nOut">0</div></div>
+      <div class="stat"><div class="k">削除した重複</div><div class="v" id="nDup">0</div></div>
+      <div class="stat"><div class="k">形をそろえた電話番号</div><div class="v" id="nTel">0</div></div>
+    </div>
+    <p class="info" id="meta"></p>
+    <div class="warn hidden" id="warnBox"></div>
+    <button type="button" id="download" disabled>整えたCSVをダウンロード</button>
+    <p class="note">出力形式：UTF-8（BOM付き）・改行CRLF。Excel（Windows／Mac）でそのまま開けます。</p>
+    <div class="tablewrap"><table id="preview"></table></div>
+    <p class="note" id="previewNote"></p>
+  </section>
+</main>
+
+<script>
+"use strict";
+
+var MAX_BYTES = 100 * 1024 * 1024;
+var PREVIEW_ROWS = 50;
+
+// 全角の英数字・記号（U+FF01〜U+FF5E）を半角に変換する
+function toHalfWidth(s) {
+  return s.replace(/[！-～]/g, function (c) {
+    return String.fromCharCode(c.charCodeAt(0) - 0xFEE0);
+  });
+}
+
+// RFC 4180 準拠のCSV解析（ダブルクォート、セル内の改行・カンマに対応）
+function parseCSV(text) {
+  var rows = [], row = [], cell = "", i = 0, inQ = false, n = text.length;
+  while (i < n) {
+    var c = text[i];
+    if (inQ) {
+      if (c === '"') {
+        if (text[i + 1] === '"') { cell += '"'; i += 2; continue; }
+        inQ = false; i++; continue;
+      }
+      cell += c; i++; continue;
+    }
+    if (c === '"') { inQ = true; i++; continue; }
+    if (c === ",") { row.push(cell); cell = ""; i++; continue; }
+    if (c === "\r" || c === "\n") {
+      row.push(cell); rows.push(row); row = []; cell = "";
+      if (c === "\r" && text[i + 1] === "\n") i++;
+      i++; continue;
+    }
+    cell += c; i++;
+  }
+  if (cell !== "" || row.length > 0) { row.push(cell); rows.push(row); }
+  // 完全な空行は除外
+  return rows.filter(function (r) { return !(r.length === 1 && r[0].trim() === ""); });
+}
+
+function toCSV(rows) {
+  return rows.map(function (r) {
+    return r.map(function (v) {
+      return /[",\r\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+    }).join(",");
+  }).join("\r\n") + "\r\n";
+}
+
+// バイト列を文字列に変換（UTF-8 / Shift_JIS を自動判定）
+function decodeBytes(buf) {
+  var u8 = new Uint8Array(buf);
+  if (u8.length >= 3 && u8[0] === 0xEF && u8[1] === 0xBB && u8[2] === 0xBF) {
+    return { text: new TextDecoder("utf-8").decode(u8.subarray(3)), enc: "UTF-8（BOM付き）" };
+  }
+  try {
+    return { text: new TextDecoder("utf-8", { fatal: true }).decode(u8), enc: "UTF-8" };
+  } catch (e) {
+    return { text: new TextDecoder("shift_jis").decode(u8), enc: "Shift_JIS" };
+  }
+}
+
+function group(d, sizes) {
+  var out = [], p = 0;
+  for (var i = 0; i < sizes.length; i++) { out.push(d.substr(p, sizes[i])); p += sizes[i]; }
+  return out.join("-");
+}
+
+// 電話番号を「090-1234-5678」形式にそろえる。
+// 戻り値: { value, status } status = "empty" | "ok"（変更なし）| "changed" | "unknown"（判定不能のため元のまま）
+function formatPhone(raw) {
+  var s = toHalfWidth(raw).trim();
+  if (s === "") return { value: raw, status: "empty" };
+  // 数字以外の区切り（ハイフン類・長音・空白・括弧・ドット）以外が含まれていれば電話番号とみなさない
+  if (!/^\+?[\d\s\-‐-―−ーｰ().]+$/.test(s)) return { value: s, status: "unknown" };
+  var groups = s.split(/[^\d]+/).filter(Boolean);
+  if (s.charAt(0) === "+") {
+    if (groups.length === 0 || groups[0].indexOf("81") !== 0) return { value: s, status: "unknown" };
+    var rest = groups[0].slice(2);
+    groups = (rest ? [rest] : []).concat(groups.slice(1));
+    if (groups.length === 0) return { value: s, status: "unknown" };
+    groups[0] = "0" + groups[0].replace(/^0/, "");
+  }
+  var d = groups.join("");
+  if (!/^0\d{9,10}$/.test(d)) return { value: s, status: "unknown" };
+
+  var v = null;
+  if (d.length === 11 && /^0800/.test(d)) {
+    v = group(d, [4, 3, 4]);           // フリーダイヤル 0800
+  } else if (d.length === 11 && /^0[5789]0/.test(d)) {
+    v = group(d, [3, 4, 4]);           // 携帯・IP電話 050/070/080/090
+  } else if (d.length === 10 && /^(0120|0570|0990)/.test(d)) {
+    v = group(d, [4, 3, 3]);           // 0120 / ナビダイヤル等
+  } else if (d.length === 10 && groups.length === 3 && groups[0].length >= 2 && groups[0].length <= 5) {
+    v = groups.join("-");              // 固定電話は市外局番の桁数が地域で異なるため、元の区切り位置を尊重
+  } else if (d.length === 10 && /^0[36]/.test(d)) {
+    v = group(d, [2, 4, 4]);           // 東京03 / 大阪06
+  }
+  if (v === null) return { value: s, status: "unknown" };
+  return { value: v, status: v === raw ? "ok" : "changed" };
+}
+
+// 電話番号の列を判定（見出し名を優先し、なければ中身から推定）
+function detectPhoneCols(header, body) {
+  var cols = [];
+  if (header) {
+    header.forEach(function (h, i) {
+      if (/電話|携帯|TEL|phone|fax/i.test(toHalfWidth(h))) cols.push(i);
+    });
+    if (cols.length) return cols;
+  }
+  var width = body.reduce(function (m, r) { return Math.max(m, r.length); }, 0);
+  for (var c = 0; c < width; c++) {
+    var filled = 0, hit = 0;
+    body.forEach(function (r) {
+      var v = (r[c] || "").trim();
+      if (!v) return;
+      filled++;
+      var st = formatPhone(v).status;
+      if (st === "ok" || st === "changed") hit++;
+    });
+    if (filled > 0 && hit / filled >= 0.6) cols.push(c);
+  }
+  return cols;
+}
+
+function cleanRows(rows, hasHeader) {
+  var header = hasHeader && rows.length ? rows[0] : null;
+  var body = hasHeader ? rows.slice(1) : rows.slice();
+  var phoneCols = detectPhoneCols(header ? header.map(function (h) { return h.trim(); }) : null, body);
+  var telChanged = 0, unknown = [];
+  var normalized = body.map(function (r, idx) {
+    return r.map(function (v, c) {
+      var t = toHalfWidth(v).trim();
+      if (phoneCols.indexOf(c) !== -1) {
+        var res = formatPhone(v);
+        if (res.status === "changed") telChanged++;
+        if (res.status === "unknown") unknown.push({ line: idx + (hasHeader ? 2 : 1), value: t });
+        return res.status === "empty" ? "" : res.value;
+      }
+      return t;
+    });
+  });
+  var seen = new Set(), out = [];
+  normalized.forEach(function (r) {
+    var key = JSON.stringify(r);
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push(r);
+  });
+  return {
+    header: header ? header.map(function (h) { return toHalfWidth(h).trim(); }) : null,
+    rows: out,
+    inCount: body.length,
+    outCount: out.length,
+    dupCount: body.length - out.length,
+    telChanged: telChanged,
+    phoneCols: phoneCols,
+    unknown: unknown
+  };
+}
+
+// ---- 画面処理 ----
+var $ = function (id) { return document.getElementById(id); };
+var state = { lastFile: null, output: null, fileName: "" };
+
+function showError(msg) {
+  $("error").textContent = msg;
+  $("error").classList.toggle("hidden", !msg);
+}
+
+function renderPreview(header, rows) {
+  var table = $("preview");
+  table.textContent = "";
+  if (header) {
+    var thead = document.createElement("thead"), tr = document.createElement("tr");
+    header.forEach(function (h) { var th = document.createElement("th"); th.textContent = h; tr.appendChild(th); });
+    thead.appendChild(tr); table.appendChild(thead);
+  }
+  var tbody = document.createElement("tbody");
+  rows.slice(0, PREVIEW_ROWS).forEach(function (r) {
+    var tr = document.createElement("tr");
+    r.forEach(function (v) { var td = document.createElement("td"); td.textContent = v; tr.appendChild(td); });
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  $("previewNote").textContent = rows.length > PREVIEW_ROWS
+    ? "プレビューは先頭" + PREVIEW_ROWS + "件のみ表示しています（ダウンロードには全件含まれます）。" : "";
+}
+
+function process(file) {
+  showError("");
+  $("result").classList.add("hidden");
+  $("download").disabled = true;
+  state.output = null;
+  if (!file) return;
+  if (file.size > MAX_BYTES) { showError("ファイルが大きすぎます（100MBまで）。"); return; }
+  file.arrayBuffer().then(function (buf) {
+    var dec = decodeBytes(buf);
+    var rows = parseCSV(dec.text);
+    if (rows.length === 0) { showError("データが見つかりませんでした。"); return; }
+    var hasHeader = $("hasHeader").checked;
+    var r = cleanRows(rows, hasHeader);
+    $("nIn").textContent = r.inCount.toLocaleString();
+    $("nOut").textContent = r.outCount.toLocaleString();
+    $("nDup").textContent = r.dupCount.toLocaleString();
+    $("nTel").textContent = r.telChanged.toLocaleString();
+    var colNames = r.phoneCols.map(function (c) { return r.header ? "「" + r.header[c] + "」" : (c + 1) + "列目"; });
+    $("meta").textContent = "文字コード：" + dec.enc + "　／　電話番号として処理した列：" +
+      (colNames.length ? colNames.join("、") : "見つかりませんでした");
+    var wb = $("warnBox");
+    wb.textContent = "";
+    if (r.unknown.length) {
+      var p = document.createElement("div");
+      p.textContent = "次の電話番号は形式を判定できなかったため、半角化のみ行い元の並びのまま残しました（" + r.unknown.length + "件）。";
+      var ul = document.createElement("ul");
+      r.unknown.slice(0, 20).forEach(function (u) {
+        var li = document.createElement("li"); li.textContent = u.line + "行目：" + u.value; ul.appendChild(li);
+      });
+      wb.appendChild(p); wb.appendChild(ul);
+    }
+    wb.classList.toggle("hidden", r.unknown.length === 0);
+    var all = r.header ? [r.header].concat(r.rows) : r.rows;
+    state.output = "﻿" + toCSV(all);
+    state.fileName = file.name.replace(/\.[^.]*$/, "") + "_cleaned.csv";
+    renderPreview(r.header, r.rows);
+    $("download").disabled = false;
+    $("result").classList.remove("hidden");
+  }).catch(function () {
+    showError("ファイルを読み込めませんでした。");
+  });
+}
+
+function download() {
+  if (!state.output) return;
+  var blob = new Blob([state.output], { type: "text/csv;charset=utf-8" });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement("a");
+  a.href = url; a.download = state.fileName;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+}
+
+if (typeof document !== "undefined" && document.getElementById("file")) {
+  $("file").addEventListener("change", function (e) { state.lastFile = e.target.files[0] || null; process(state.lastFile); });
+  $("hasHeader").addEventListener("change", function () { process(state.lastFile); });
+  $("download").addEventListener("click", download);
+}
+</script>
+</body>
+</html>
