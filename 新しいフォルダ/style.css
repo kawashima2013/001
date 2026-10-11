@@ -1,6 +1,9 @@
 :root {
-  --navy: #1f2f4d;
-  --navy-dark: #15213a;
+  --navy: #232f3e;
+  --navy-dark: #131921;
+  --orange: #ff9900;
+  --orange-dark: #e88b00;
+  --blue: #146eb4;
   --text: #22262e;
   --muted: #5b6270;
   --line: #dde2ea;
@@ -70,7 +73,14 @@ a {
 }
 
 .nav .nav-contact {
-  border: 1px solid #ffffff;
+  background: var(--orange);
+  color: var(--navy-dark);
+  font-weight: bold;
+}
+
+.nav .nav-contact:hover,
+.nav .nav-contact:focus-visible {
+  background: var(--orange-dark);
 }
 
 /* 共通 */
@@ -87,11 +97,11 @@ h2 {
   padding-bottom: 8px;
   color: var(--navy);
   font-size: 22px;
-  border-bottom: 2px solid var(--navy);
+  border-bottom: 3px solid var(--orange);
 }
 
 h3 {
-  color: var(--navy);
+  color: var(--blue);
   font-size: 17px;
   line-height: 1.5;
 }
@@ -130,8 +140,8 @@ h3 {
   display: block;
   margin-top: 24px;
   padding: 14px 16px;
-  background: var(--navy);
-  color: #ffffff;
+  background: var(--orange);
+  color: var(--navy-dark);
   font-weight: bold;
   text-align: center;
   text-decoration: none;
@@ -140,21 +150,11 @@ h3 {
 
 .button:hover,
 .button:focus-visible {
-  background: var(--navy-dark);
-}
-
-.button-light {
-  background: #ffffff;
-  color: var(--navy);
-}
-
-.button-light:hover,
-.button-light:focus-visible {
-  background: var(--bg-soft);
+  background: var(--orange-dark);
 }
 
 a:focus-visible {
-  outline: 3px solid #8fa8d6;
+  outline: 3px solid var(--blue);
   outline-offset: 2px;
 }
 
@@ -170,7 +170,7 @@ a:focus-visible {
 .card {
   padding: 20px 16px;
   background: var(--bg-soft);
-  border-left: 4px solid var(--navy);
+  border-left: 4px solid var(--orange);
   border-radius: 4px;
 }
 
@@ -215,7 +215,10 @@ a:focus-visible {
 
 .contact h2 {
   color: #ffffff;
-  border-bottom-color: #ffffff;
+}
+
+.contact a:focus-visible {
+  outline-color: #ffffff;
 }
 
 .contact .button {
