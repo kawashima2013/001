@@ -188,6 +188,42 @@ a:focus-visible {
   color: var(--muted);
 }
 
+/* ご依頼の流れ */
+.flow {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+}
+
+.flow li {
+  position: relative;
+  padding: 0 0 20px 52px;
+  color: var(--muted);
+  counter-increment: step;
+}
+
+.flow li::before {
+  content: counter(step);
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 36px;
+  height: 36px;
+  background: var(--orange);
+  color: var(--navy-dark);
+  font-weight: bold;
+  line-height: 36px;
+  text-align: center;
+  border-radius: 50%;
+}
+
+.flow strong {
+  display: block;
+  color: var(--blue);
+  font-size: 17px;
+}
+
 /* 作ったもの */
 .works {
   margin: 0;
@@ -234,6 +270,18 @@ a:focus-visible {
   margin-top: 24px;
 }
 
+.contact .button-sub {
+  margin-top: 12px;
+  background: transparent;
+  color: #ffffff;
+  border: 2px solid #ffffff;
+}
+
+.contact .button-sub:hover,
+.contact .button-sub:focus-visible {
+  background: var(--navy-dark);
+}
+
 .footer {
   padding: 16px;
   background: var(--navy-dark);
@@ -250,7 +298,7 @@ a:focus-visible {
 
   .contact .button {
     display: block;
-    width: fit-content;
+    width: 280px;
     margin-left: auto;
     margin-right: auto;
   }
