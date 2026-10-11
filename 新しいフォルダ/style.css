@@ -1,0 +1,245 @@
+:root {
+  --navy: #1f2f4d;
+  --navy-dark: #15213a;
+  --text: #22262e;
+  --muted: #5b6270;
+  --line: #dde2ea;
+  --bg: #ffffff;
+  --bg-soft: #f4f6f9;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "YuGothic", Meiryo, sans-serif;
+  font-size: 16px;
+  line-height: 1.8;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+a {
+  color: inherit;
+}
+
+/* 上部メニュー */
+.top {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--navy);
+}
+
+.nav {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 8px 16px;
+}
+
+.nav a {
+  padding: 8px 10px;
+  color: #ffffff;
+  font-size: 14px;
+  text-decoration: none;
+  border-radius: 4px;
+}
+
+.nav a:hover,
+.nav a:focus-visible {
+  background: var(--navy-dark);
+}
+
+.nav .nav-contact {
+  border: 1px solid #ffffff;
+}
+
+/* 共通 */
+.hero,
+.section {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 40px 16px;
+  scroll-margin-top: 56px;
+}
+
+h2 {
+  margin-bottom: 20px;
+  padding-bottom: 8px;
+  color: var(--navy);
+  font-size: 22px;
+  border-bottom: 2px solid var(--navy);
+}
+
+h3 {
+  color: var(--navy);
+  font-size: 17px;
+  line-height: 1.5;
+}
+
+/* 冒頭 */
+.hero {
+  padding-top: 48px;
+}
+
+.company {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.hero h1 {
+  margin-top: 4px;
+  color: var(--navy);
+  font-size: 32px;
+  letter-spacing: 0.08em;
+  line-height: 1.4;
+}
+
+.lead {
+  margin-top: 16px;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.profile {
+  margin-top: 12px;
+  color: var(--muted);
+}
+
+/* ボタン */
+.button {
+  display: block;
+  margin-top: 24px;
+  padding: 14px 16px;
+  background: var(--navy);
+  color: #ffffff;
+  font-weight: bold;
+  text-align: center;
+  text-decoration: none;
+  border-radius: 6px;
+}
+
+.button:hover,
+.button:focus-visible {
+  background: var(--navy-dark);
+}
+
+.button-light {
+  background: #ffffff;
+  color: var(--navy);
+}
+
+.button-light:hover,
+.button-light:focus-visible {
+  background: var(--bg-soft);
+}
+
+a:focus-visible {
+  outline: 3px solid #8fa8d6;
+  outline-offset: 2px;
+}
+
+/* できること */
+.cards {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.card {
+  padding: 20px 16px;
+  background: var(--bg-soft);
+  border-left: 4px solid var(--navy);
+  border-radius: 4px;
+}
+
+.card p {
+  margin-top: 8px;
+  color: var(--muted);
+}
+
+/* 作ったもの */
+.works {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.works li {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.works li:first-child {
+  padding-top: 0;
+}
+
+.works p {
+  margin-top: 6px;
+  color: var(--muted);
+}
+
+/* 連絡先 */
+.contact {
+  max-width: none;
+  background: var(--navy);
+  color: #ffffff;
+}
+
+.contact > * {
+  max-width: 688px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.contact h2 {
+  color: #ffffff;
+  border-bottom-color: #ffffff;
+}
+
+.contact .button {
+  margin-top: 24px;
+}
+
+.footer {
+  padding: 16px;
+  background: var(--navy-dark);
+  color: #c9d1df;
+  font-size: 12px;
+  text-align: center;
+}
+
+@media (min-width: 600px) {
+  .button {
+    display: inline-block;
+    min-width: 240px;
+  }
+
+  .contact .button {
+    display: block;
+    width: fit-content;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
