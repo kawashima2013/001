@@ -111,13 +111,7 @@ h3 {
   padding-top: 48px;
 }
 
-.company {
-  color: var(--muted);
-  font-size: 14px;
-}
-
 .hero h1 {
-  margin-top: 4px;
   color: var(--navy);
   font-size: 32px;
   letter-spacing: 0.08em;
